@@ -7,6 +7,11 @@ import Queue
 import os
 
 
+"""
+This code simulates a hierarchical queue (agents make skip decisions at every queue).
+"""
+
+
 # Defines classes "Station" and "Players"
 class Player:
 	def __init__(self,arrival_date,player_ID):
@@ -25,7 +30,7 @@ class Player:
 		self.done=0
 		self.total_cost=0
 		self.expected_cost=[]
-	
+
 	def make_decision(self,beta,queue_current):
 		if beta>len(queue_current):
 			self.skip.append("False")
@@ -38,7 +43,7 @@ class Player:
 			if e<=t:
 				b+=1
 		self.location=b-1
-		
+
 
 class Station:
 	def __init__(self,No_servers,mu,station_ID,skip_cost):
@@ -51,25 +56,25 @@ class Station:
 		self.queue=[]
 		self.expected_cost_value=0
 		self.skip_count=0
-		
+
 		h=0
 		while h<No_servers:
 			self.servers_end.append(0)
 			self.server_utilisation.append(0)
 			h+=1
-			
-	def expected_cost(self,No_servers,mu,queue_length):	
-		
+
+	def expected_cost(self,No_servers,mu,queue_length):
+
 		if queue_length<len(self.servers_end):
 			self.expected_cost_value=(1/mu)
-			
+
 		else:
 			self.expected_cost_value=(len(self.queue)-1)/(No_servers*mu)
-		
-		
+
+
 	def join_queue(self,decision_maker_ID):
 		self.queue.append(decision_maker_ID)
-		
+
 	def queue_cleanup(self,Players,current_queue,k,t):
 		h=0
 		if current_queue==[]:
@@ -88,12 +93,12 @@ def find_decision_maker(Players,poss_decision_maker,t):
 			decision_maker_ID=e
 	return decision_maker_ID
 
-	
-def sys_exit(n,Players,t):	
+
+def sys_exit(n,Players,t):
 	for e in Players:
 		if e.in_sys==True and e.location==n and e.decision_date[-1]<=t:
 			e.in_sys=False
-			
+
 #Takes a linear map of the policy in terms of queue length
 def policy_conversion(mu,No_servers,skip_cost):
 	M_policy=[]
@@ -103,15 +108,15 @@ def policy_conversion(mu,No_servers,skip_cost):
 		k+=1
 	return M_policy
 
-#Defining our sampling distributions		
+#Defining our sampling distributions
 def inter_arrival(lmbda):
 	return random.expovariate(lmbda)
-	
+
 def service_dist(mu,location):
 	return random.expovariate(mu[location])
 
 def G_Sim(lmbda=False,mu=False,No_servers=False,skip_cost=False,Simulation_Time=False,Policy=False,warm_period=0,Print_Option=True):
-	
+
 	Policy_conversion=0
 	#If not parameters input, prompt
 	if not lmbda:
@@ -125,7 +130,7 @@ def G_Sim(lmbda=False,mu=False,No_servers=False,skip_cost=False,Simulation_Time=
 	if not Policy:
 		Policy=skip_cost
 		Policy_conversion=1
-	
+
 	#Initialise the variables and lists
 	t=0
 	arrival_date=inter_arrival(lmbda)
@@ -135,28 +140,28 @@ def G_Sim(lmbda=False,mu=False,No_servers=False,skip_cost=False,Simulation_Time=
 	player_ID=0
 	skip_count=0
 	last_service=0
-	
+
 	#Validates input
 	if not len(mu)==len(No_servers)==len(skip_cost):
 		print "List lengths do not match"
 		return
-	
+
 	#Creates Stations based on vector length
 	k=0
 	n=len(mu)
 	while k<n:
 		Stations.append(Station(No_servers[k],mu[k],k,skip_cost[k]))
 		k+=1
-		
+
 	#Converts policy into terms of queue length
 	if Policy_conversion==1:
 		N_policy = policy_conversion(mu,No_servers,skip_cost)
 	else:
 		N_policy = Policy
-	
+
 	#Simulation model
 	while t<Simulation_Time:
-		
+
 		#Creating a new player if this is the models first run through, or when t is at the previous players arrival date
 		if len(Players)==0:
 			Players.append(Player(arrival_date,len(Players)))
@@ -166,20 +171,20 @@ def G_Sim(lmbda=False,mu=False,No_servers=False,skip_cost=False,Simulation_Time=
 				arrival_date+=inter_arrival(lmbda)
 				Players.append(Player(arrival_date,len(Players)))
 				poss_decision_maker.append(Players[-1].player_ID)
-			
+
 		#Increments the clock
 		t=Players[poss_decision_maker[0]].decision_date[-1]
 		for e in poss_decision_maker[1:]:
 			t=min(t,Players[e].decision_date[-1])
-		
+
 		#Updates location for all players still in the system
 		for e in Players:
 			if e.in_sys==True:
 				e.find_player(t)
-				
+
 		#checks if the players are still in the system
 		sys_exit(n,Players,t)
-		
+
 		#chooses the current decision maker
 		decision_maker_ID=find_decision_maker(Players,poss_decision_maker,t)
 
@@ -188,7 +193,7 @@ def G_Sim(lmbda=False,mu=False,No_servers=False,skip_cost=False,Simulation_Time=
 		while k<n:
 			Stations[k].queue_cleanup(Players,Stations[k].queue,k,t)
 			k+=1
-		
+
 		#the player makes a decision whether or not to skip the queue
 		Stations[Players[decision_maker_ID].location].expected_cost(len(Stations[Players[decision_maker_ID].location].servers_end),Stations[Players[decision_maker_ID].location].service_rate,len(Stations[Players[decision_maker_ID].location].queue))
 		Players[decision_maker_ID].make_decision(N_policy[Players[decision_maker_ID].location],Stations[Players[decision_maker_ID].location].queue)
@@ -212,7 +217,7 @@ def G_Sim(lmbda=False,mu=False,No_servers=False,skip_cost=False,Simulation_Time=
 			elif last_service==0 and Players[decision_maker_ID].arrival_date>warm_period:
 				Stations[Players[decision_maker_ID].location].server_utilisation[Players[decision_maker_ID].server_used[-1]]+=(Simulation_Time-Players[decision_maker_ID].service_start_date[-1])
 				last_service=1
-			
+
 		#This Part is for the players who skipped, filling attributes with N/A
 		else:
 			Players[decision_maker_ID].cost.append(skip_cost[Players[decision_maker_ID].location])
@@ -228,10 +233,10 @@ def G_Sim(lmbda=False,mu=False,No_servers=False,skip_cost=False,Simulation_Time=
 		#Removes players whove made thier final decision.
 		if len(Players[decision_maker_ID].decision_date)==n+1:
 			poss_decision_maker.pop(poss_decision_maker.index(decision_maker_ID))
-		
+
 	#adds completed players to a new list
 	completed_players=[]
-	
+
 	for e in Players:
 		if e.location==n and e.arrival_date>warm_period:
 			completed_players.append(e)
@@ -246,23 +251,23 @@ def G_Sim(lmbda=False,mu=False,No_servers=False,skip_cost=False,Simulation_Time=
 			costs.append([a.cost[k] for a in completed_players])
 			Mean_cost.append(sum(costs[k])/len(costs[k]))
 			k+=1
-		Sys_total_cost=sum(Mean_cost)/n	
-			
+		Sys_total_cost=sum(Mean_cost)/n
+
 		if not Print_Option:
 			for e in Stations:
 				e.server_utilisation=[r/(t-warm_period) for r in e.server_utilisation]
 				ave_Util=[]
-			
+
 			k=0
 			while k<n:
 				ave_Util.append(sum(Stations[k].server_utilisation)/len(Stations[k].server_utilisation))
 				k+=1
 
 			return 0,Sys_total_cost
-		
+
 		skip_count=[a.skip_count for a in Stations]
 		total_skips=sum(skip_count)
-		
+
 		k=0
 		waits=[]
 		Mean_wait=[]
@@ -271,7 +276,7 @@ def G_Sim(lmbda=False,mu=False,No_servers=False,skip_cost=False,Simulation_Time=
 			Mean_wait.append(sum(waits[k])/len(waits[k]))
 			k+=1
 		Sys_mean_wait=sum(Mean_wait)/n
-		
+
 		k=0
 		Total_time=[]
 		Mean_time=[]
@@ -280,28 +285,28 @@ def G_Sim(lmbda=False,mu=False,No_servers=False,skip_cost=False,Simulation_Time=
 			Mean_time.append(sum(Total_time[k])/len(Total_time[k]))
 			k+=1
 		Sys_total_times=sum(Mean_time)/n
-		
-		
-		
+
+
+
 		#Output summary stats
 		print "Summary Statistics:"
 		print ""
 		print "Policy                    : ",N_policy
 		print "Player Stats"
 		print "Total Players             : ",len(completed_players)
-		
+
 		k=0
 		while k<n:
 			print "Mean Time for Station ",k," : ",Mean_time[k]
 			k+=1
 		print "Mean Time for System      : ",Sys_total_times
-		
+
 		k=0
 		while k<n:
 			print "Mean Wait for Station ",k," : ",Mean_wait[k]
 			k+=1
 		print "Mean Wait for System      : ",Sys_mean_wait
-		
+
 		k=0
 		while k<n:
 			print "Skips for Station",k,"      : ",Stations[k].skip_count
@@ -322,10 +327,10 @@ def G_Sim(lmbda=False,mu=False,No_servers=False,skip_cost=False,Simulation_Time=
 				print "Server ",h,"at Station",e.station_ID," Utilisation: ", r
 				h+=1
 			print""
-				
-			
+
+
 		print""
-	
+
 	else:
 		if not Print_Option:
 			ave_Util=[]
@@ -338,7 +343,7 @@ def G_Sim(lmbda=False,mu=False,No_servers=False,skip_cost=False,Simulation_Time=
 
 			return ave_Util,Sys_total_cost
 		print "No Valid Players, Results Colection Period Too Small"
-	
+
 	#Csv writer,outputs data to seperate forms
 	if input("Output data to csv (True/False)? "):
 
@@ -398,15 +403,15 @@ def G_Sim(lmbda=False,mu=False,No_servers=False,skip_cost=False,Simulation_Time=
 
 		h=0
 		while h<n:
-			string="Decision at %s" %h 
+			string="Decision at %s" %h
 			outrow.append(string)
 			h+=1
 		output.writerow(outrow)
-		
+
 		#This is the  player data
 		k=0
 		while k<len(Players):
-			
+
 			#Player data is being sent to CSV
 			outrow=[]
 			outrow.append(Players[k].player_ID)
@@ -467,7 +472,7 @@ def G_Sim(lmbda=False,mu=False,No_servers=False,skip_cost=False,Simulation_Time=
 				else:
 					outrow.append('DNF')
 				h+=1
-			
+
 			h=0
 			while h<n:
 				if h<=Players[k].location:
@@ -486,15 +491,15 @@ def G_Sim(lmbda=False,mu=False,No_servers=False,skip_cost=False,Simulation_Time=
 				else:
 					outrow.append('DNF')
 				h+=1
-			
+
 			output.writerow(outrow)
 			k+=1
 		outfile.close()
-		
+
 		#Outputs Station data
 		outfile=open('H_Q_S-Output-Station-(%s,%s,%s,%s,%s).csv' %(lmbda,mu,No_servers,skip_cost,Simulation_Time),'wb')
 		output=csv.writer(outfile)
-		
+
 		outrow=[]
 		outrow.append("Station ID")
 		outrow.append("Station Skip Cost")
@@ -509,7 +514,7 @@ def G_Sim(lmbda=False,mu=False,No_servers=False,skip_cost=False,Simulation_Time=
 				h+=1
 			k+=1
 		output.writerow(outrow)
-		
+
 		k=0
 		while k<n:
 			outrow=[]
@@ -523,7 +528,7 @@ def G_Sim(lmbda=False,mu=False,No_servers=False,skip_cost=False,Simulation_Time=
 				h+=1
 			output.writerow(outrow)
 			k+=1
-			
+
 		outfile.close()
-	
+
 	return
